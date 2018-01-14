@@ -40,7 +40,9 @@ class Configuration(docker.Stack):
             fabricio.run(command)
 
     @property
+    @fabricio.once_per_task(block=True)
     def images(self):
+        # TODO apply cd and put
         spec = self.__get_images_spec()
         return list(reduce(set.union, map(dict.values, spec.values()), set()))
 
@@ -84,17 +86,17 @@ class Configuration(docker.Stack):
         """
         any passed argument will be forwarded to 'kubectl delete' as option
         """
-        super(Configuration, self).destroy(**options)
+        with fab.cd(self.temp_dir):
+            if self.is_manager():
+                configuration = self.get_configuration()
+                self.upload_configuration(configuration)
+            super(Configuration, self).destroy(**options)
 
     @fabricio.once_per_task(block=True)
-    def _destroy(self, configuration, digests, options):
-        if not configuration:
-            raise docker.ServiceError('current configuration not found')
-
-        with fab.cd(self.temp_dir):
-            self.upload_configuration(configuration)
-
+    def _destroy(self, options):
+        try:
             options = utils.Options(options)
             options.setdefault('filename', self.config)
             fabricio.run('kubectl delete {options}'.format(options=options))
-        self._updated.set()
+        finally:
+            self._updated.set()

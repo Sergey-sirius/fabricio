@@ -68,13 +68,16 @@ class Stack(ManagedService):
     def upload_configuration(self, configuration):
         fab.put(six.BytesIO(configuration), self.config)
 
+    def get_configuration(self):
+        return open(self.config, 'rb').read()
+
     def update(self, tag=None, registry=None, account=None, force=False):
         if not self.is_manager():
             return None
 
         self.reset_update_status()
 
-        configuration = open(self.config, 'rb').read()
+        configuration = self.get_configuration()
         with fab.cd(self.temp_dir):
             result = self._update(configuration, force=force)
 
@@ -217,6 +220,7 @@ class Stack(ManagedService):
             )
 
     @property
+    @fabricio.once_per_task(block=True)
     def images(self):
         images = self.__get_images()
         return list(set(images.values()))
@@ -249,29 +253,31 @@ class Stack(ManagedService):
         """
         any passed argument will be forwarded to 'docker stack rm' as option
         """
+        self.reset_update_status()
         if self.is_manager():
-            self.reset_update_status()
-            configuration, digests = self.current_settings
-            self._destroy(configuration, digests, options)
-            if self._updated.is_set():
-                self.remove_sentinel_images(service_images=digests)
+            self.images  # save service images
+            self._destroy(options)
+        self._updated.wait()  # waiting for service destroy result
+        if self._destroy.has_result():
+            self._remove_images()
 
-    def remove_sentinel_images(self, service_images=None):
+    def _remove_images(self):
         images = [self.current_settings_tag, self.backup_settings_tag]
         with contextlib.suppress(ImageNotFoundError):
             images.append(Image(self.current_settings_tag).info['Parent'])
             images.append(Image(self.backup_settings_tag).info['Parent'])
-        if service_images:
-            images.extend(service_images)
+        images.extend(self.images)
         fabricio.run(
             'docker rmi {images}'.format(images=' '.join(images)),
             ignore_errors=True,
         )
 
     @fabricio.once_per_task(block=True)
-    def _destroy(self, configuration, digests, options):
-        fabricio.run('docker stack rm {options} {name}'.format(
-            options=utils.Options(options),
-            name=self.name,
-        ))
-        self._updated.set()
+    def _destroy(self, options):
+        try:
+            fabricio.run('docker stack rm {options} {name}'.format(
+                options=utils.Options(options),
+                name=self.name,
+            ))
+        finally:
+            self._updated.set()

@@ -712,13 +712,14 @@ class StackTestCase(FabricioTestCase):
             rotate_sentinel_images.assert_not_called()
 
     @mock.patch.object(docker.ManagedService, 'is_manager', return_value=True)
-    @mock.patch.object(fabricio, 'run', return_value='[{"Parent": "parent_id", "Config": {"Labels": {"fabricio.configuration": "azhzLnltbA==", "fabricio.digests": "eyJpbWFnZSI6ICJkaWdlc3QifQ=="}}}]')
+    @mock.patch.object(fabricio, 'run')
     def test_destroy(self, run, *_):
+        run.side_effect = [SucceededResult('service image')] + [SucceededResult('[{"Parent": "parent_id"}]')] * 4
         stack = docker.Stack(name='name')
         stack.destroy()
         self.assertListEqual(
             [
-                mock.call('docker inspect --type image fabricio-current-stack:name', abort_exception=docker.ImageNotFoundError),
+                mock.call('docker stack services --format "{{.Name}} {{.Image}}" name'),
                 mock.call('docker stack rm  name'),
                 mock.call('docker inspect --type image fabricio-current-stack:name', abort_exception=docker.ImageNotFoundError),
                 mock.call('docker inspect --type image fabricio-backup-stack:name', abort_exception=docker.ImageNotFoundError),

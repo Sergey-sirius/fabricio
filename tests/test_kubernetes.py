@@ -510,14 +510,16 @@ class StackTestCase(FabricioTestCase):
             rotate_sentinel_images.assert_not_called()
 
     @mock.patch.object(kubernetes.Configuration, 'is_manager', return_value=True)
+    @mock.patch.object(kubernetes.Configuration, 'get_configuration', return_value=b'configuration')
     @mock.patch.object(kubernetes.Configuration, 'upload_configuration')
-    @mock.patch.object(fabricio, 'run', return_value='[{"Parent": "parent_id", "Config": {"Labels": {"fabricio.configuration": "azhzLnltbA==", "fabricio.digests": "eyJpbWFnZSI6ICJkaWdlc3QifQ=="}}}]')
+    @mock.patch.object(fabricio, 'run')
     def test_destroy(self, run, upload, *_):
+        run.side_effect = [SucceededResult('kind/name image-name image')] + [SucceededResult('[{"Parent": "parent_id"}]')] * 4
         config = kubernetes.Configuration(name='name', options=dict(filename='config.yml'))
         config.destroy()
         self.assertListEqual(
             [
-                mock.call('docker inspect --type image fabricio-current-kubernetes:name', abort_exception=docker.ImageNotFoundError),
+                mock.call('kubectl get --output go-template --filename config.yml --template \'{{define "images"}}{{$kind := .kind}}{{$name := .metadata.name}}{{with .spec.template.spec.containers}}{{range .}}{{$kind}}/{{$name}} {{.name}} {{.image}}{{"\\n"}}{{end}}{{end}}{{end}}{{if eq .kind "List"}}{{range .items}}{{template "images" .}}{{end}}{{else}}{{template "images" .}}{{end}}\''),
                 mock.call('kubectl delete --filename=config.yml'),
                 mock.call('docker inspect --type image fabricio-current-kubernetes:name', abort_exception=docker.ImageNotFoundError),
                 mock.call('docker inspect --type image fabricio-backup-kubernetes:name', abort_exception=docker.ImageNotFoundError),
@@ -525,4 +527,4 @@ class StackTestCase(FabricioTestCase):
             ],
             run.mock_calls,
         )
-        upload.assert_called_once_with(b'k8s.yml')
+        upload.assert_called_once_with(b'configuration')
