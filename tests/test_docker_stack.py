@@ -20,6 +20,8 @@ def as_ordereddict(result):
 
 class StackTestCase(FabricioTestCase):
 
+    maxDiff = None
+
     def setUp(self):
         stack_module.open = mock.MagicMock()
         self.cd = mock.patch.object(fab, 'cd')
@@ -710,16 +712,17 @@ class StackTestCase(FabricioTestCase):
             rotate_sentinel_images.assert_not_called()
 
     @mock.patch.object(docker.ManagedService, 'is_manager', return_value=True)
-    @mock.patch.object(fabricio, 'run', return_value='[{"Parent": "parent_id"}]')
+    @mock.patch.object(fabricio, 'run', return_value='[{"Parent": "parent_id", "Config": {"Labels": {"fabricio.configuration": "azhzLnltbA==", "fabricio.digests": "eyJpbWFnZSI6ICJkaWdlc3QifQ=="}}}]')
     def test_destroy(self, run, *_):
         stack = docker.Stack(name='name')
         stack.destroy()
         self.assertListEqual(
             [
+                mock.call('docker inspect --type image fabricio-current-stack:name', abort_exception=docker.ImageNotFoundError),
                 mock.call('docker stack rm  name'),
                 mock.call('docker inspect --type image fabricio-current-stack:name', abort_exception=docker.ImageNotFoundError),
                 mock.call('docker inspect --type image fabricio-backup-stack:name', abort_exception=docker.ImageNotFoundError),
-                mock.call('docker rmi fabricio-current-stack:name fabricio-backup-stack:name parent_id parent_id', ignore_errors=True),
+                mock.call('docker rmi fabricio-current-stack:name fabricio-backup-stack:name parent_id parent_id image', ignore_errors=True),
             ],
             run.mock_calls,
         )

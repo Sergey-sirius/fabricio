@@ -251,22 +251,25 @@ class Stack(ManagedService):
         """
         if self.is_manager():
             self.reset_update_status()
-            self._destroy(**options)
+            configuration, digests = self.current_settings
+            self._destroy(configuration, digests, options)
             if self._updated.is_set():
-                self.remove_sentinel_images()
+                self.remove_sentinel_images(service_images=digests)
 
-    def remove_sentinel_images(self):
+    def remove_sentinel_images(self, service_images=None):
         images = [self.current_settings_tag, self.backup_settings_tag]
         with contextlib.suppress(ImageNotFoundError):
             images.append(Image(self.current_settings_tag).info['Parent'])
             images.append(Image(self.backup_settings_tag).info['Parent'])
+        if service_images:
+            images.extend(service_images)
         fabricio.run(
             'docker rmi {images}'.format(images=' '.join(images)),
             ignore_errors=True,
         )
 
     @fabricio.once_per_task(block=True)
-    def _destroy(self, **options):
+    def _destroy(self, configuration, digests, options):
         fabricio.run('docker stack rm {options} {name}'.format(
             options=utils.Options(options),
             name=self.name,

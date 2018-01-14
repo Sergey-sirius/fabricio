@@ -87,9 +87,7 @@ class Configuration(docker.Stack):
         super(Configuration, self).destroy(**options)
 
     @fabricio.once_per_task(block=True)
-    def _destroy(self, **options):
-        configuration, _ = self.current_settings
-
+    def _destroy(self, configuration, digests, options):
         if not configuration:
             raise docker.ServiceError('current configuration not found')
 

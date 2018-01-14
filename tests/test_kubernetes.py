@@ -511,7 +511,7 @@ class StackTestCase(FabricioTestCase):
 
     @mock.patch.object(kubernetes.Configuration, 'is_manager', return_value=True)
     @mock.patch.object(kubernetes.Configuration, 'upload_configuration')
-    @mock.patch.object(fabricio, 'run', return_value='[{"Parent": "parent_id", "Config": {"Labels": {"fabricio.configuration": "azhzLnltbA=="}}}]')
+    @mock.patch.object(fabricio, 'run', return_value='[{"Parent": "parent_id", "Config": {"Labels": {"fabricio.configuration": "azhzLnltbA==", "fabricio.digests": "eyJpbWFnZSI6ICJkaWdlc3QifQ=="}}}]')
     def test_destroy(self, run, upload, *_):
         config = kubernetes.Configuration(name='name', options=dict(filename='config.yml'))
         config.destroy()
@@ -521,7 +521,7 @@ class StackTestCase(FabricioTestCase):
                 mock.call('kubectl delete --filename=config.yml'),
                 mock.call('docker inspect --type image fabricio-current-kubernetes:name', abort_exception=docker.ImageNotFoundError),
                 mock.call('docker inspect --type image fabricio-backup-kubernetes:name', abort_exception=docker.ImageNotFoundError),
-                mock.call('docker rmi fabricio-current-kubernetes:name fabricio-backup-kubernetes:name parent_id parent_id', ignore_errors=True),
+                mock.call('docker rmi fabricio-current-kubernetes:name fabricio-backup-kubernetes:name parent_id parent_id image', ignore_errors=True),
             ],
             run.mock_calls,
         )
