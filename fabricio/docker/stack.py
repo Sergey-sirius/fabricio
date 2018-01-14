@@ -255,7 +255,7 @@ class Stack(ManagedService):
         """
         self.reset_update_status()
         if self.is_manager():
-            self.images  # save service images
+            self.images  # read service images
             self._destroy(options)
         self._updated.wait()  # waiting for service destroy result
         if self._destroy.has_result():

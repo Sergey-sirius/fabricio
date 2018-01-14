@@ -1,5 +1,5 @@
 from fabric import api as fab
-from six.moves import shlex_quote, filter, reduce, map
+from six.moves import filter, reduce, map
 
 import fabricio
 
@@ -64,14 +64,11 @@ class Configuration(docker.Stack):
             '{{end}}'
         )
         command = (
-            'kubectl get'
-            ' --output go-template'
-            ' --filename {filename}'
-            ' --template {template}'
-            ''.format(
-                template=shlex_quote(template),
-                filename=shlex_quote(self.config),
-            )
+            'kubectl get {options}'.format(options=utils.Options([
+                ('output', 'go-template'),
+                ('filename', self.config),
+                ('template', template),
+            ]))
         )
 
         result = dict()
