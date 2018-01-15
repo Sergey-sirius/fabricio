@@ -15,7 +15,8 @@ import fabricio
 
 from fabricio import utils
 
-from .base import ManagedService, Option, Attribute, ServiceError
+from .base import ManagedService, Option, Attribute, ServiceError, \
+    ManagerNotFoundError
 from .image import Image, ImageNotFoundError
 
 
@@ -238,11 +239,27 @@ class Stack(ManagedService):
     def destroy(self, **options):
         """
         any passed argument will be forwarded to 'docker stack rm' as option
+
+        Note: make sure "managers" are listed before "workers" in your
+        Fabricio configuration before calling this method in serial mode
         """
-        if self.is_manager():
-            self._destroy(**options)
-            if self._destroy.has_result():
-                self._remove_images()
+        self._reset_destroy_event()
+
+        try:
+            if self.is_manager():
+                self._destroy(options)
+        except ManagerNotFoundError:
+            self._destroy.set()
+
+        timeout = None if fab.env.parallel else 0
+        self._destroy.wait(timeout)
+
+        if self._destroy.has_result():
+            self._remove_images()
+
+    @fabricio.once_per_task(block=True)
+    def _reset_destroy_event(self):
+        self._destroy.reset()
 
     def _remove_images(self):
         images = [self.current_settings_tag, self.backup_settings_tag]
@@ -256,7 +273,8 @@ class Stack(ManagedService):
         )
 
     @fabricio.once_per_task(block=True)
-    def _destroy(self, **options):
+    def _destroy(self, options):
+        self.images
         fabricio.run('docker stack rm {options} {name}'.format(
             options=utils.Options(options),
             name=self.name,

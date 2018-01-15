@@ -82,6 +82,9 @@ class Configuration(docker.Stack):
     def destroy(self, **options):
         """
         any passed argument will be forwarded to 'kubectl delete' as option
+
+        Note: make sure "managers" are listed before "workers" in your
+        Fabricio configuration before calling this method in serial mode
         """
         with fab.cd(self.temp_dir):
             if self.is_manager():
@@ -91,6 +94,7 @@ class Configuration(docker.Stack):
 
     @fabricio.once_per_task(block=True)
     def _destroy(self, options):
+        self.images
         options = utils.Options(options)
         options.setdefault('filename', self.config)
         fabricio.run('kubectl delete {options}'.format(options=options))
