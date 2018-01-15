@@ -91,9 +91,6 @@ class Configuration(docker.Stack):
 
     @fabricio.once_per_task(block=True)
     def _destroy(self, options):
-        try:
-            options = utils.Options(options)
-            options.setdefault('filename', self.config)
-            fabricio.run('kubectl delete {options}'.format(options=options))
-        finally:
-            self._updated.set()
+        options = utils.Options(options)
+        options.setdefault('filename', self.config)
+        fabricio.run('kubectl delete {options}'.format(options=options))

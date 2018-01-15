@@ -1,10 +1,15 @@
 Changelog
 =========
 
-Release 0.5.3
+Release 0.5.4
 -------------
 
 - Enhancement: destroying of ``docker.Stack`` or ``kubernetes.Configuration`` also removes all its service images
+
+Release 0.5.3
+-------------
+
+- Fix: ``kubernetes.Configuration``, ``docker.Stack``: fixed multi-master configurations
 
 Release 0.5.2
 -------------
