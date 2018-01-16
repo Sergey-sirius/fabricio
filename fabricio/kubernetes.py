@@ -93,7 +93,7 @@ class Configuration(docker.Stack):
 
     @fabricio.once_per_task(block=True)
     def _destroy(self, options):
-        self.images  # get list of images before configuration removal
+        self.images  # get list of images before configuration remove
         options = utils.Options(options)
         options.setdefault('filename', self.config)
         fabricio.run('kubectl delete {options}'.format(options=options))

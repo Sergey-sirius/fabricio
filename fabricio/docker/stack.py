@@ -286,7 +286,7 @@ class Stack(ManagedService):
 
     @fabricio.once_per_task(block=True)
     def _destroy(self, options):
-        self.images  # get list of images before stack removal
+        self.images  # get list of images before stack remove
         fabricio.run('docker stack rm {options} {name}'.format(
             options=utils.Options(options),
             name=self.name,
