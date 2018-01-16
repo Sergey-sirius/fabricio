@@ -42,8 +42,9 @@ class Configuration(docker.Stack):
     @property
     @fabricio.once_per_task(block=True)
     def images(self):
-        # TODO apply cd and put
-        spec = self.__get_images_spec()
+        with fab.cd(self.temp_dir):
+            self._upload_config()
+            spec = self.__get_images_spec()
         return list(reduce(set.union, map(dict.values, spec.values()), set()))
 
     def __get_images_spec(self):
@@ -87,9 +88,7 @@ class Configuration(docker.Stack):
         Fabricio configuration before calling this method in serial mode
         """
         with fab.cd(self.temp_dir):
-            if self.is_manager():
-                configuration = self.get_configuration()
-                self.upload_configuration(configuration)
+            self._upload_config()
             super(Configuration, self).destroy(**options)
 
     @fabricio.once_per_task(block=True)

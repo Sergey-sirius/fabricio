@@ -1,5 +1,6 @@
 import itertools
 import json
+import multiprocessing
 import sys
 import warnings
 
@@ -55,6 +56,7 @@ class Stack(ManagedService):
             options.setdefault('config', options['compose_file'])
 
         super(Stack, self).__init__(*args, **kwargs)
+        self._uploaded_config_hosts = multiprocessing.Manager().dict()
 
     @property
     def current_settings_tag(self):
@@ -70,13 +72,22 @@ class Stack(ManagedService):
     def get_configuration(self):
         return open(self.config, 'rb').read()
 
+    def _upload_config(self):
+        if self.is_manager():
+            try:
+                return self._uploaded_config_hosts[fab.env.host]
+            except KeyError:
+                configuration = self.get_configuration()
+                self.upload_configuration(configuration)
+                self._uploaded_config_hosts[fab.env.host] = configuration
+                return configuration
+
     def update(self, tag=None, registry=None, account=None, force=False):
         if not self.is_manager():
             return None
 
-        configuration = self.get_configuration()
         with fab.cd(self.temp_dir):
-            self.upload_configuration(configuration)
+            configuration = self._upload_config()
             updated = self._update(configuration, force=force)
 
             if updated:

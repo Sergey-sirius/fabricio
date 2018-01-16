@@ -18,7 +18,7 @@ def as_ordereddict(result):
     return collections.OrderedDict(sorted(result.items()))
 
 
-class StackTestCase(FabricioTestCase):
+class ConfigurationTestCase(FabricioTestCase):
 
     maxDiff = None
 
