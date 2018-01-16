@@ -250,6 +250,7 @@ class Stack(ManagedService):
                 self._destroy(options)
         except ManagerNotFoundError:
             self._destroy.set()
+            raise
 
         timeout = None if fab.env.parallel else 0
         self._destroy.wait(timeout)
@@ -274,7 +275,7 @@ class Stack(ManagedService):
 
     @fabricio.once_per_task(block=True)
     def _destroy(self, options):
-        self.images
+        self.images  # get list of images before stack removal
         fabricio.run('docker stack rm {options} {name}'.format(
             options=utils.Options(options),
             name=self.name,
