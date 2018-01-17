@@ -70,15 +70,15 @@ class Stack(ManagedService):
         if self.current_configuration is not None or not self.is_manager():
             yield self.current_configuration
         else:
-            try:
-                with fab.cd(self.temp_dir):
+            with fab.cd(self.temp_dir):
+                try:
                     configuration = configuration or self.get_configuration()
                     self.current_configuration = configuration
                     self.upload_configuration(configuration)
                     yield configuration
+                finally:
                     fabricio.remove_file(self.config, ignore_errors=True)
-            finally:
-                self.current_configuration = None
+                    self.current_configuration = None
 
     def upload_configuration(self, configuration):
         fab.put(six.BytesIO(configuration), self.config)
