@@ -1,6 +1,5 @@
 import itertools
 import json
-import multiprocessing
 import sys
 import warnings
 
@@ -56,7 +55,7 @@ class Stack(ManagedService):
             options.setdefault('config', options['compose_file'])
 
         super(Stack, self).__init__(*args, **kwargs)
-        self._uploaded_config_hosts = multiprocessing.Manager().dict()
+        self.current_configuration = None
 
     @property
     def current_settings_tag(self):
@@ -66,28 +65,32 @@ class Stack(ManagedService):
     def backup_settings_tag(self):
         return 'fabricio-backup-stack:{0}'.format(self.name)
 
+    @contextlib.contextmanager
+    def upload_configuration_file(self, configuration=None):
+        if self.current_configuration is not None or not self.is_manager():
+            yield self.current_configuration
+        else:
+            try:
+                with fab.cd(self.temp_dir):
+                    configuration = configuration or self.get_configuration()
+                    self.current_configuration = configuration
+                    self.upload_configuration(configuration)
+                    yield configuration
+                    fabricio.remove_file(self.config, ignore_errors=True)
+            finally:
+                self.current_configuration = None
+
     def upload_configuration(self, configuration):
         fab.put(six.BytesIO(configuration), self.config)
 
     def get_configuration(self):
         return open(self.config, 'rb').read()
 
-    def _upload_config(self):
-        if self.is_manager():
-            try:
-                return self._uploaded_config_hosts[fab.env.host]
-            except KeyError:
-                configuration = self.get_configuration()
-                self.upload_configuration(configuration)
-                self._uploaded_config_hosts[fab.env.host] = configuration
-                return configuration
-
     def update(self, tag=None, registry=None, account=None, force=False):
         if not self.is_manager():
             return None
 
-        with fab.cd(self.temp_dir):
-            configuration = self._upload_config()
+        with self.upload_configuration_file() as configuration:
             updated = self._update(configuration, force=force)
 
             if updated:
@@ -116,8 +119,7 @@ class Stack(ManagedService):
     def revert(self):
         if not self.is_manager():
             return
-        with fab.cd(self.temp_dir):
-            self._revert()
+        self._revert()
         if self._revert.has_result():
             self.rotate_sentinel_images(rollback=True)
 
@@ -128,12 +130,11 @@ class Stack(ManagedService):
         if configuration is None:
             raise ServiceError('backup configuration not found')
 
-        self.upload_configuration(configuration)
+        with self.upload_configuration_file(configuration):
+            self._update(configuration, force=True)
 
-        self._update(configuration, force=True)
-
-        if digests:
-            self._revert_images(digests)
+            if digests:
+                self._revert_images(digests)
 
     def _revert_images(self, digests):
         images = self.__get_images()

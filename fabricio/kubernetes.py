@@ -1,4 +1,3 @@
-from fabric import api as fab
 from six.moves import filter, reduce, map
 
 import fabricio
@@ -42,8 +41,7 @@ class Configuration(docker.Stack):
     @property
     @fabricio.once_per_task(block=True)
     def images(self):
-        with fab.cd(self.temp_dir):
-            self._upload_config()
+        with self.upload_configuration_file():
             spec = self.__get_images_spec()
         return list(reduce(set.union, map(dict.values, spec.values()), set()))
 
@@ -87,8 +85,7 @@ class Configuration(docker.Stack):
         Note: make sure "managers" are listed before "workers" in your
         Fabricio configuration before calling this method in serial mode
         """
-        with fab.cd(self.temp_dir):
-            self._upload_config()
+        with self.upload_configuration_file():
             super(Configuration, self).destroy(**options)
 
     @fabricio.once_per_task(block=True)
