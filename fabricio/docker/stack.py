@@ -258,7 +258,7 @@ class Stack(ManagedService):
 
         try:
             if self.is_manager():
-                self._destroy(options)
+                self._destroy(utils.Options(options))
         except ManagerNotFoundError:
             self._destroy.set()
             raise
@@ -273,6 +273,17 @@ class Stack(ManagedService):
     def _reset_destroy_event(self):
         self._destroy.reset()
 
+    @fabricio.once_per_task(block=True)
+    def _destroy(
+        self,
+        options,  # type: utils.Options
+    ):
+        self.images  # get list of images before stack remove
+        fabricio.run('docker stack rm {options} {name}'.format(
+            options=options,
+            name=self.name,
+        ))
+
     def _remove_images(self):
         images = [self.current_settings_tag, self.backup_settings_tag]
         with contextlib.suppress(ImageNotFoundError):
@@ -283,11 +294,3 @@ class Stack(ManagedService):
             'docker rmi {images}'.format(images=' '.join(images)),
             ignore_errors=True,
         )
-
-    @fabricio.once_per_task(block=True)
-    def _destroy(self, options):
-        self.images  # get list of images before stack remove
-        fabricio.run('docker stack rm {options} {name}'.format(
-            options=utils.Options(options),
-            name=self.name,
-        ))
