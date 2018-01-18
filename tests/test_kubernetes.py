@@ -531,9 +531,10 @@ class ConfigurationTestCase(FabricioTestCase):
 
     @mock.patch.object(kubernetes.Configuration, 'is_manager', return_value=True)
     @mock.patch.object(kubernetes.Configuration, 'get_configuration', return_value=b'configuration')
-    @mock.patch.object(kubernetes.Configuration, 'upload_configuration')
+    @mock.patch.object(six, 'BytesIO', bytes)
+    @mock.patch.object(fab, 'put')
     @mock.patch.object(fabricio, 'run')
-    def test_destroy(self, run, upload, *_):
+    def test_destroy(self, run, put, *_):
         run.side_effect = [SucceededResult('kind/name image-name image')] + [SucceededResult('[{"Parent": "parent_id"}]')] * 4
         with mock.patch('fabricio.operations.run', run):
             config = kubernetes.Configuration(name='name', options=dict(filename='config.yml'))
@@ -549,4 +550,4 @@ class ConfigurationTestCase(FabricioTestCase):
                 ],
                 run.mock_calls,
             )
-            upload.assert_called_once_with(b'configuration')
+            put.assert_called_once_with(b'configuration', 'config.yml')

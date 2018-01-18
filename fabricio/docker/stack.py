@@ -55,7 +55,7 @@ class Stack(ManagedService):
             options.setdefault('config', options['compose_file'])
 
         super(Stack, self).__init__(*args, **kwargs)
-        self.current_configuration = None
+        self._current_configuration = None
 
     @property
     def current_settings_tag(self):
@@ -67,20 +67,30 @@ class Stack(ManagedService):
 
     @contextlib.contextmanager
     def upload_configuration_file(self, configuration=None):
-        if self.current_configuration is not None or not self.is_manager():
-            yield self.current_configuration
+        if self._current_configuration is not None or not self.is_manager():
+            yield self._current_configuration
         else:
             with fab.cd(self.temp_dir):
                 try:
                     configuration = configuration or self.get_configuration()
-                    self.current_configuration = configuration
-                    self.upload_configuration(configuration)
+                    self._current_configuration = configuration
+                    fab.put(six.BytesIO(configuration), self.config)
                     yield configuration
                 finally:
                     fabricio.remove_file(self.config, ignore_errors=True)
-                    self.current_configuration = None
+                    self._current_configuration = None
 
-    def upload_configuration(self, configuration):
+    def upload_configuration(self, configuration):  # pragma: no cover
+        warnings.warn(
+            'this method is deprecated and will be removed in v0.6, '
+            'use upload_configuration_file context manager instead',
+            DeprecationWarning,
+        )
+        warnings.warn(
+            'upload_configuration is deprecated and will be removed in v0.6, '
+            'use upload_configuration_file context manager instead',
+            RuntimeWarning, stacklevel=2,
+        )
         fab.put(six.BytesIO(configuration), self.config)
 
     def get_configuration(self):
